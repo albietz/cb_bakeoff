@@ -30,7 +30,7 @@ def expand_cover(policies):
         # algs.append(('cover', policies, 'psi', psi, 'nounifagree', None, 'agree_mellowness', 0.01))
     return algs
 
-params_old = {
+params = {
     'alg': [
         ('supervised',),
         ('epsilon', 0),
@@ -55,21 +55,6 @@ params_old = {
         ('bag', 8, 'greedify', None),
         ('bag', 16, 'greedify', None),
         ] + expand_cover(1) + expand_cover(4) + expand_cover(8) + expand_cover(16),
-    'learning_rate': [0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1.0, 3.0, 10.0],
-    'cb_type': ['dr', 'ips', 'mtr'],
-    }
-
-params = {
-    'alg': [
-        ('epsilon', 0.05, 'nounifagree', None, 'agree_mellowness', 1.0),
-        ('epsilon', 0.05, 'nounifagree', None, 'agree_mellowness', 1e-2),
-        ('epsilon', 0.05, 'nounifagree', None, 'agree_mellowness', 1e-4),
-        ('epsilon', 0.05, 'nounifagree', None, 'agree_mellowness', 1e-6),
-        ('epsilon', 1, 'nounifagree', None, 'agree_mellowness', 1.0),
-        ('epsilon', 1, 'nounifagree', None, 'agree_mellowness', 1e-2),
-        ('epsilon', 1, 'nounifagree', None, 'agree_mellowness', 1e-4),
-        ('epsilon', 1, 'nounifagree', None, 'agree_mellowness', 1e-6),
-        ],
     'learning_rate': [0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1.0, 3.0, 10.0],
     'cb_type': ['dr', 'ips', 'mtr'],
     }
