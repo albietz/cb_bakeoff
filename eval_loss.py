@@ -20,7 +20,7 @@ DIR_PATTERN = '/scratch/clear/abietti/cb_eval/res/cbresults_{}/'
 
 # functions for interactive queries
 def print_best_algos_for_ds(df, ds, n=50):
-    print df.loc[df.ds == ds, ['na', 'sz', 'nf', 'algo', 'lr', 'loss', 'rawloss']].sort_values('loss').head(n).to_string()
+    print(df.loc[df.ds == str(ds), ['na', 'sz', 'nf', 'name', 'algo', 'lr', 'loss', 'rawloss']].sort_values('loss').head(n).to_string())
 
 
 def print_win_ds_for_algo(df, algo_pattern):
@@ -28,9 +28,9 @@ def print_win_ds_for_algo(df, algo_pattern):
     bag + mtr with tuned learning rate wins
     '''
     rgx = re.compile(algo_pattern)
-    print df.loc[df.groupby('ds').loss.idxmin()].loc[
+    print(df.loc[df.groupby('ds').loss.idxmin()].loc[
             df.algo.map(lambda x: rgx.match(x) is not None),
-            ['ds', 'na', 'sz', 'nf', 'algo', 'lr', 'loss']].to_string()
+            ['ds', 'na', 'sz', 'nf', 'algo', 'lr', 'loss']].to_string())
 
 
 def load_names(names, cb_type=None, normalize=True, min_actions=None, min_size=None, ty='best', use_cs=False):
@@ -60,11 +60,16 @@ def load_names(names, cb_type=None, normalize=True, min_actions=None, min_size=N
     df_raw = pd.concat(df_raws, ignore_index=True)
     df_raw['rawloss'] = df_raw['loss']
 
+    df_raw['refloss'] = 0.
+    ref = df_raw[df_raw.algo == 'supervised'].groupby('ds').loss.min()
+    for k, loss in ref.items():
+        df_raw.loc[df_raw.ds == k, ['refloss']] = loss
     if normalize:
-        ref = df_raw[df_raw.algo == 'supervised'].groupby('ds').loss.min()
-        for k, loss in ref.iteritems():
-            df_raw.loc[df_raw.ds == k, ['loss']] = \
-                    (df_raw.loc[df_raw.ds == k, ['loss']] - loss) / loss
+        df_raw.loss = (df_raw.loss - df_raw.refloss) / df_raw.refloss
+        # ref = df_raw[df_raw.algo == 'supervised'].groupby('ds').loss.min()
+        # for k, loss in ref.items():
+        #     df_raw.loc[df_raw.ds == k, ['loss']] = \
+        #             (df_raw.loc[df_raw.ds == k, ['loss']] - loss) / loss
 
     if ty == 'raw':
         return cached(df_raw)
@@ -110,39 +115,44 @@ if __name__ == '__main__':
                                   min_actions=args.min_actions, min_size=args.min_size)
     df_raw['rawloss'] = df_raw['loss']
 
+    # loss of always predicting best fixed action
+    ds_to_action_loss = pickle.load(open('ds_action_loss.pkl'))
+    ds_to_action_loss = {str(k): v for k, v in list(ds_to_action_loss.items())}
+    df_raw['action_loss'] = df_raw.ds.map(ds_to_action_loss)
+
     if not args.median:
         if args.weighted:
             def print_results(df, dfbest):
-                print '***** average loss per algo after tuning lr for each (ds, algo)'
+                print('***** average loss per algo after tuning lr for each (ds, algo)')
                 by = dfbest.algo
-                print ((dfbest.loss * dfbest.weights).groupby(by).sum() / dfbest.weights.groupby(by).sum()).sort_values()
-                print
-                print '***** average loss per (algo, lr)'
+                print(((dfbest.loss * dfbest.weights).groupby(by).sum() / dfbest.weights.groupby(by).sum()).sort_values())
+                print()
+                print('***** average loss per (algo, lr)')
                 by = [df.algo, df.lr]
-                print ((df.loss * df.weights).groupby(by).sum() / df.weights.groupby(by).sum()).sort_values()
-                print
-                print '***** average_ds of best loss across all (algo, lr):',
+                print(((df.loss * df.weights).groupby(by).sum() / df.weights.groupby(by).sum()).sort_values())
+                print()
+                print('***** average_ds of best loss across all (algo, lr):', end=' ')
                 # print df.groupby('ds').loss.min().mean()
         else:
             def print_results(df, dfbest):
-                print '***** average loss per algo after tuning lr for each (ds, algo)'
-                print dfbest.groupby('algo').loss.mean().sort_values()
-                print
-                print '***** average loss per (algo, lr)'
-                print df.groupby(['algo', 'lr']).loss.mean().sort_values()
-                print
-                print '***** average_ds of best loss across all (algo, lr):',
-                print df.groupby('ds').loss.min().mean()
+                print('***** average loss per algo after tuning lr for each (ds, algo)')
+                print(dfbest.groupby('algo').loss.mean().sort_values())
+                print()
+                print('***** average loss per (algo, lr)')
+                print(df.groupby(['algo', 'lr']).loss.mean().sort_values())
+                print()
+                print('***** average_ds of best loss across all (algo, lr):', end=' ')
+                print(df.groupby('ds').loss.min().mean())
     else:
         def print_results(df, dfbest):
-            print '***** median loss per algo after tuning lr for each (ds, algo)'
-            print dfbest.groupby('algo').loss.median().sort_values()
-            print
-            print '***** median loss per (algo, lr)'
-            print df.groupby(['algo', 'lr']).loss.median().sort_values()
-            print
-            print '***** median_ds of best loss across all (algo, lr):',
-            print df.groupby('ds').loss.min().median()
+            print('***** median loss per algo after tuning lr for each (ds, algo)')
+            print(dfbest.groupby('algo').loss.median().sort_values())
+            print()
+            print('***** median loss per (algo, lr)')
+            print(df.groupby(['algo', 'lr']).loss.median().sort_values())
+            print()
+            print('***** median_ds of best loss across all (algo, lr):', end=' ')
+            print(df.groupby('ds').loss.min().median())
 
     if args.normalize:
         pass # df_raw.loss *= df_raw.sz.apply(np.sqrt)
@@ -162,17 +172,17 @@ if __name__ == '__main__':
         # print '######################## wins by (algo, lr)'
         # print df.loc[df.groupby('ds').loss.idxmin()].groupby(['algo', 'lr']).size().sort_values(ascending=False)
         # print
-        print '######################## wins by algo after tuning lr'
-        print dfbest.loc[dfbest.groupby('ds').loss.idxmin()].groupby('algo').size().sort_values(ascending=False)
+        print('######################## wins by algo after tuning lr')
+        print(dfbest.loc[dfbest.groupby('ds').loss.idxmin()].groupby('algo').size().sort_values(ascending=False))
 
-        print
-        print
+        print()
+        print()
         # print '######################## Progressive Validation loss #############################'
         # print_results(df, dfbest)
 
-        print
-        print
-        print '######################## PV loss minus supervised', '(normalized)' if args.normalize else ''
+        print()
+        print()
+        print('######################## PV loss minus supervised', '(normalized)' if args.normalize else '')
         # ref = df_raw[df_raw.algo == 'supervised'].groupby(['ds', 'lr']).loss.min()
         # for k, loss in ref.iteritems():
         #     idxs = (df.ds == k[0]) & (df.lr == k[1])
@@ -180,7 +190,7 @@ if __name__ == '__main__':
 
     ref = df_raw[df_raw.algo == 'supervised'].groupby('ds').loss.min()
     refmax = df_raw.groupby('ds').loss.max()
-    for k, loss in ref.iteritems():
+    for k, loss in ref.items():
         df.loc[df.ds == k, ['loss']] -= loss
         if args.normalize:
             df.loc[df.ds == k, ['loss']] /= ( loss)
@@ -194,9 +204,9 @@ if __name__ == '__main__':
         print_results(df, dfbest)
     sys.exit(0)
 
-    print
-    print
-    print '######################## PV loss minus eps-greedy 0.05'
+    print()
+    print()
+    print('######################## PV loss minus eps-greedy 0.05')
     # reset df
     df = df_raw[df_raw.algo != 'supervised'].copy()
     dfbest = df.loc[df.groupby(['ds', 'algo']).loss.idxmin()].copy()
@@ -207,16 +217,16 @@ if __name__ == '__main__':
     #     df.loc[idxs, ['loss']] -= loss
 
     ref = dfbest[dfbest.algo == 'epsilon:0.05'].groupby('ds').loss.min()
-    for k, loss in ref.iteritems():
+    for k, loss in ref.items():
         df.loc[df.ds == k, ['loss']] -= loss
         idxs = dfbest.ds == k
         dfbest.loc[idxs, ['loss']] -= loss
 
     print_results(df, dfbest)
 
-    print
-    print
-    print '######################## PV loss minus best'
+    print()
+    print()
+    print('######################## PV loss minus best')
     # reset df
     df = df_raw[df_raw.algo != 'supervised'].copy()
     dfbest = df.loc[df.groupby(['ds', 'algo']).loss.idxmin()].copy()
@@ -227,7 +237,7 @@ if __name__ == '__main__':
     #     df.loc[idxs, ['loss']] -= loss
 
     ref = dfbest.groupby('ds').loss.min()
-    for k, loss in ref.iteritems():
+    for k, loss in ref.items():
         df.loc[df.ds == k, ['loss']] -= loss
         idxs = dfbest.ds == k
         dfbest.loc[idxs, ['loss']] -= loss

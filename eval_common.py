@@ -8,9 +8,9 @@ import pandas as pd
 
 def load_raw(loss_file, adf=True, cb_type=None, min_actions=None, min_size=None, shuffle=False):
     if adf:
-        rgx = re.compile(r'^ds:(\d+)\|na:(\d+)\|cb_type:(.*)\|(.*)\|(.*) (.*)$', flags=re.M)
+        rgx = re.compile(r'^ds:(.+)\|na:(\d+)\|cb_type:(.*)\|(.*)\|(.*) (.*)$', flags=re.M)
         if loss_file.endswith('.gz'):
-            lines = rgx.findall(gzip.open(loss_file).read())
+            lines = rgx.findall(gzip.open(loss_file).read().decode('utf-8'))
         else:
             lines = rgx.findall(open(loss_file).read())
         if cb_type == 'mtr':
@@ -26,19 +26,21 @@ def load_raw(loss_file, adf=True, cb_type=None, min_actions=None, min_size=None,
             df_raw = df_raw[df_raw.cb_type == cb_type]
     else:
         # rgx = re.compile('^ds_(\d+)_(\d+)_(.*) (.*)$', flags=re.M)
-        rgx = re.compile(r'^ds:(\d+)\|na:(\d+)\|(.*)\|(.*) (.*)$', flags=re.M)
+        rgx = re.compile(r'^ds:(.+)\|na:(\d+)\|(.*)\|(.*) (.*)$', flags=re.M)
         lines = rgx.findall(open(loss_file).read())
 
         df_raw = pd.DataFrame(lines, columns=['ds', 'na', 'lr', 'algo', 'loss'])
-    df_raw.ds = df_raw.ds.astype(int)
+    # df_raw.ds = df_raw.ds.astype(int)
     df_raw.na = df_raw.na.astype(int)
     df_raw.loss = df_raw.loss.astype(float)
     df_raw.algo = df_raw.algo.map(lambda x:
-            x.replace('nounifagree', 'nounifa').replace('agree_mellowness', 'c0')
+            x.replace('nounifagree', 'nounifa')
+            .replace('agree_mellowness', 'c0')
+            .replace('mellowness', 'c0')
             )
 
-    ds_to_sz = pickle.load(open('ds_sz.pkl'))
-    ds_to_nf = pickle.load(open('ds_nf.pkl'))
+    ds_to_sz = pickle.load(open('ds_sz.pkl', 'rb'), encoding='latin1')
+    ds_to_nf = pickle.load(open('ds_nf.pkl', 'rb'), encoding='latin1')
     df_raw['sz'] = df_raw.ds.map(ds_to_sz)
     df_raw['nf'] = df_raw.ds.map(ds_to_nf)
 
