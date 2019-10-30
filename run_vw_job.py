@@ -7,6 +7,7 @@ import time
 
 USE_ADF = True
 USE_CS = False
+RANDOM_TIE = True
 
 VW = '/scratch/clear/abietti/.local/bin/vw'
 if USE_CS:
@@ -15,8 +16,6 @@ if USE_CS:
 else:
     VW_DS_DIR = '/scratch/clear/abietti/cb_eval/vwshuffled/'
     DIR_PATTERN = '/scratch/clear/abietti/cb_eval/res/cbresults_{}/'
-# VW_DS_DIR = '/bscratch/b-albiet/vwshuffled/'
-# DIR_PATTERN = '/bscratch/b-albiet/cbresults_{}/'
 
 rgx = re.compile('^average loss = (.*)$', flags=re.M)
 
@@ -26,8 +25,6 @@ def expand_cover(policies):
     for psi in [0, 0.01, 0.1, 1.0]:
         algs.append(('cover', policies, 'psi', psi))
         algs.append(('cover', policies, 'psi', psi, 'nounif', None))
-        # algs.append(('cover', policies, 'psi', psi, 'nounifagree', None, 'agree_mellowness', 0.1))
-        # algs.append(('cover', policies, 'psi', psi, 'nounifagree', None, 'agree_mellowness', 0.01))
     return algs
 
 params = {
@@ -37,12 +34,9 @@ params = {
         ('epsilon', 0.02),
         ('epsilon', 0.05),
         ('epsilon', 0.1),
-        ('epsilon', 0.05, 'nounifagree', None, 'agree_mellowness', 1.0),
-        ('epsilon', 0.05, 'nounifagree', None, 'agree_mellowness', 1e-2),
-        ('epsilon', 0.05, 'nounifagree', None, 'agree_mellowness', 1e-4),
-        ('epsilon', 0.05, 'nounifagree', None, 'agree_mellowness', 1e-6),
-        # agree
-        ('epsilon', 1, 'nounifagree', None, 'agree_mellowness', 1.0),
+        ('epsilon', 0.02, 'nounifagree', None, 'agree_mellowness', 1e-2),
+        ('epsilon', 0.02, 'nounifagree', None, 'agree_mellowness', 1e-4),
+        ('epsilon', 0.02, 'nounifagree', None, 'agree_mellowness', 1e-6),
         ('epsilon', 1, 'nounifagree', None, 'agree_mellowness', 1e-2),
         ('epsilon', 1, 'nounifagree', None, 'agree_mellowness', 1e-4),
         ('epsilon', 1, 'nounifagree', None, 'agree_mellowness', 1e-6),
@@ -54,13 +48,20 @@ params = {
         ('bag', 4, 'greedify', None),
         ('bag', 8, 'greedify', None),
         ('bag', 16, 'greedify', None),
-        ] + expand_cover(1) + expand_cover(4) + expand_cover(8) + expand_cover(16),
+        ('regcb', None, 'mellowness', 1e-1),
+        ('regcb', None, 'mellowness', 1e-2),
+        ('regcb', None, 'mellowness', 1e-3),
+        ('regcbopt', None, 'mellowness', 1e-1),
+        ('regcbopt', None, 'mellowness', 1e-2),
+        ('regcbopt', None, 'mellowness', 1e-3),
+        ('cover', 1),
+        ('cover', 1, 'nounif', None),
+        ] + expand_cover(4) + expand_cover(8) + expand_cover(16),
     'learning_rate': [0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1.0, 3.0, 10.0],
     'cb_type': ['dr', 'ips', 'mtr'],
     }
 
 extra_flags = None
-# extra_flags = ['--loss0', '9', '--loss1', '10', '--baseline']
 
 def param_grid():
     grid = [{}]
@@ -83,7 +84,6 @@ def ds_files():
 
 def get_task_name(ds, params):
     did, n_actions = os.path.basename(ds).split('.')[0].split('_')[1:]
-    did, n_actions = int(did), int(n_actions)
 
     task_name = 'ds:{}|na:{}'.format(did, n_actions)
     if len(params) > 1:
@@ -95,7 +95,6 @@ def get_task_name(ds, params):
 def process(ds, params, results_dir):
     print 'processing', ds, params
     did, n_actions = os.path.basename(ds).split('.')[0].split('_')[1:]
-    did, n_actions = int(did), int(n_actions)
 
     cmd = [VW, ds, '-b', '24']
     for k, v in params.iteritems():
@@ -110,6 +109,8 @@ def process(ds, params, results_dir):
                     cmd += extra_flags
                 if USE_ADF:
                     cmd += ['--cb_explore_adf']
+                if RANDOM_TIE:
+                    cmd += ['--randomtie']
                 assert len(v) % 2 == 0, 'params should be in pairs of (option, value)'
                 for i in range(len(v) / 2):
                     cmd += ['--{}'.format(v[2 * i])]
@@ -119,7 +120,7 @@ def process(ds, params, results_dir):
             if params['alg'][0] == 'supervised' and k == 'cb_type':
                 pass
             else:
-	        cmd += ['--{}'.format(k), str(v)]
+                cmd += ['--{}'.format(k), str(v)]
 
     print 'running', cmd
     t = time.time()
@@ -130,6 +131,12 @@ def process(ds, params, results_dir):
     print 'elapsed time:', time.time() - t, 'pv loss:', pv_loss
 
     return pv_loss
+
+
+def skip_params(params):
+    # skip evaluating the following
+    return (params['alg'][0] == 'supervised' and params['cb_type'] != 'mtr') or \
+            (params['alg'][0].startswith('regcb') and params['cb_type'] != 'mtr')
 
 
 if __name__ == '__main__':
@@ -175,7 +182,7 @@ if __name__ == '__main__':
             print ds, params
         else:
             task_name = get_task_name(ds, params)
-            if task_name not in done_tasks:
+            if task_name not in done_tasks and not skip_params(params):
                 try:
                     pv_loss = process(ds, params, args.results_dir)
                     loss_file.write('{} {}\n'.format(task_name, pv_loss))
