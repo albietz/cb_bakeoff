@@ -7,7 +7,7 @@ A. Bietti, A. Agarwal, and J. Lanford. [A Contextual Bandit Bake-Off](https://ar
 
 ## Example usage
 
-For making VW datasets, see `oml_to_vw.py` (for multiclass), `multilabel_to_vw.py` (for multilabel), `make_full.py/full_to_ldf.py` (for learning-to-rank).
+For making VW datasets, see `oml_to_vw.py` (for multiclass), `multilabel_to_vw.py` (for multilabel), `make_full.py`/`full_to_ldf.py` (for learning-to-rank).
 Note that these require different VW options for simulating bandit feedback (`--cbify`, `--cbify_cs`, `--cbify_ldf`)
 
 Here is an example bash script for running 100 jobs on multiclass datasets with -1/0 encoding:

@@ -1,5 +1,5 @@
 """
-Helper script for mslr/yahoo learning-to-rank datasets. To be used as follows:
+Helper script for mslr/yahoo learning-to-rank datasets. To be used as follows (for 10 different shuffles):
 
     ### MSLR
     cat train.txt vali.txt test.txt | python make_full.py > train_full.txt

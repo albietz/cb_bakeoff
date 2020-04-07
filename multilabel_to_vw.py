@@ -12,9 +12,9 @@ import sys
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='multilabel to vw')
-    parser.add_argument('fname')
-    parser.add_argument('dsname')
-    parser.add_argument('na', type=int)
+    parser.add_argument('fname', help='input dataset file in libsvm format')
+    parser.add_argument('dsname', help='name of the output VW dataset')
+    parser.add_argument('na', type=int, help='number of actions/labels')
     args = parser.parse_args()
 
     outfile = 'ds_{}_{}.vw.gz'.format(args.dsname, args.na)
