@@ -3,7 +3,7 @@ Script for converting multi-label datasets to VW format.
 The multi-label datasets in the original libsvm format can be found here:
     https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/multilabel.html
 
-note: for simulating bandit feedback, use the --cbify_cs <num_actions> option in VW
+note: for simulating bandit feedback, use the options `--cbify <num_actions> --cbify_cs` in VW
 """
 
 import argparse
